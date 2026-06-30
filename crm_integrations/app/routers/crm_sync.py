@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.sync_log import SyncLog
 from app.schemas.crm_sync import CRMSyncRequest, CRMSyncResult, SyncLogRead
+from app.security import require_api_token
 from app.services.sync_service import SyncService
 
 
-router = APIRouter(prefix="/api/crm/sync", tags=["crm-sync"])
+router = APIRouter(prefix="/api/crm/sync", tags=["06 CRM Sync"], dependencies=[Depends(require_api_token)])
 sync_service = SyncService()
 
 

@@ -9,11 +9,12 @@ from app.database import get_db
 from app.models.crm_connection import CRMConnection
 from app.schemas.crm_connection import CRMConnectionCreate, CRMConnectionRead
 from app.routers.crm import save_connection
+from app.security import require_api_token
 from app.services.oauth_service import OAuthService
 from app.services.token_service import TokenService
 
 
-router = APIRouter(prefix="/api/crm/auth", tags=["crm-auth"])
+router = APIRouter(prefix="/api/crm/auth", tags=["05 CRM OAuth"])
 oauth_service = OAuthService()
 token_service = TokenService()
 
@@ -39,6 +40,7 @@ def get_login_url(
     sync_scope: str = "contacts",
     allow_collab: bool = True,
     auto_sync: bool = True,
+    authorized: bool = Depends(require_api_token),
 ):
     url = oauth_service.build_authorization_url(
         provider=provider,
@@ -61,6 +63,7 @@ def redirect_to_provider_login(
     sync_scope: str = "contacts",
     allow_collab: bool = True,
     auto_sync: bool = True,
+    authorized: bool = Depends(require_api_token),
 ):
     url = oauth_service.build_authorization_url(
         provider=provider,
@@ -76,7 +79,12 @@ def redirect_to_provider_login(
 
 
 @router.post("/{provider}/callback", response_model=CRMConnectionRead)
-async def oauth_callback_post(provider: str, payload: OAuthCallbackPayload, db: Session = Depends(get_db)):
+async def oauth_callback_post(
+    provider: str,
+    payload: OAuthCallbackPayload,
+    db: Session = Depends(get_db),
+    authorized: bool = Depends(require_api_token),
+):
     token_response = await oauth_service.exchange_code_for_token(provider, payload.code)
     refresh_token = token_response.get("refresh_token")
     connection_payload = CRMConnectionCreate(

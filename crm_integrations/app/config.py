@@ -18,6 +18,9 @@ class Settings:
     environment: str = os.getenv("ENVIRONMENT", "local")
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./crm_integrations.db")
     encryption_key: str = os.getenv("ENCRYPTION_KEY", "")
+    api_auth_token: str = os.getenv("API_AUTH_TOKEN", "")
+    api_auth_username: str = os.getenv("API_AUTH_USERNAME", "")
+    api_auth_password: str = os.getenv("API_AUTH_PASSWORD", "")
     frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
     api_base_url: str = os.getenv("API_BASE_URL", "http://localhost:8000")
     cors_origins: list[str] = None

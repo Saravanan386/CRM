@@ -4,11 +4,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.crm_connection import CRMConnection
 from app.schemas.crm_connection import CRMCatalogItem, CRMConnectionCreate, CRMConnectionRead
+from app.security import require_api_token
 from app.services.crm.crm_factory import CRMFactory
 from app.services.token_service import TokenService
 
 
-router = APIRouter(prefix="/api/crm", tags=["crm"])
+router = APIRouter(prefix="/api/crm", dependencies=[Depends(require_api_token)])
 token_service = TokenService()
 
 CRM_PROVIDER_REGISTRY: list[CRMCatalogItem] = [
@@ -24,7 +25,12 @@ CRM_PROVIDER_REGISTRY: list[CRMCatalogItem] = [
 ]
 
 
-@router.get("/providers", response_model=list[CRMCatalogItem])
+@router.get(
+    "/providers",
+    response_model=list[CRMCatalogItem],
+    tags=["03 CRM Providers"],
+    summary="List CRM providers",
+)
 def list_crm_providers(db: Session = Depends(get_db)):
     connected = {row.provider for row in db.query(CRMConnection).filter(CRMConnection.status == "connected").all()}
     return [
@@ -33,12 +39,22 @@ def list_crm_providers(db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/connections", response_model=list[CRMConnectionRead])
+@router.get(
+    "/connections",
+    response_model=list[CRMConnectionRead],
+    tags=["04 CRM Connections"],
+    summary="List connected CRMs",
+)
 def list_connections(db: Session = Depends(get_db)):
     return db.query(CRMConnection).order_by(CRMConnection.created_at.desc()).all()
 
 
-@router.get("/connections/{provider}", response_model=CRMConnectionRead)
+@router.get(
+    "/connections/{provider}",
+    response_model=CRMConnectionRead,
+    tags=["04 CRM Connections"],
+    summary="Get one CRM connection",
+)
 def get_connection(provider: str, db: Session = Depends(get_db)):
     connection = db.query(CRMConnection).filter(CRMConnection.provider == provider).first()
     if not connection:
@@ -78,7 +94,13 @@ def save_connection(payload: CRMConnectionCreate, db: Session, encrypted_refresh
     return connection
 
 
-@router.post("/connections", response_model=CRMConnectionRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/connections",
+    response_model=CRMConnectionRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["04 CRM Connections"],
+    summary="Create or update CRM connection",
+)
 async def create_or_update_connection(payload: CRMConnectionCreate, db: Session = Depends(get_db)):
     client = CRMFactory.create(payload.provider, access_token=payload.credential, api_key=payload.credential)
     try:
@@ -89,7 +111,11 @@ async def create_or_update_connection(payload: CRMConnectionCreate, db: Session 
     return save_connection(payload, db)
 
 
-@router.delete("/connections/{provider}")
+@router.delete(
+    "/connections/{provider}",
+    tags=["04 CRM Connections"],
+    summary="Delete CRM connection",
+)
 def delete_connection(provider: str, db: Session = Depends(get_db)):
     connection = db.query(CRMConnection).filter(CRMConnection.provider == provider).first()
     if not connection:

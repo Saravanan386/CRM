@@ -20,6 +20,9 @@ Set required environment variables:
 
 ```powershell
 $env:ENCRYPTION_KEY="{strong_random_secret}"
+$env:API_AUTH_TOKEN="{backend_swagger_auth_token}"
+$env:API_AUTH_USERNAME="{swagger_login_username}"
+$env:API_AUTH_PASSWORD="{swagger_login_password}"
 $env:FRONTEND_BASE_URL="http://localhost:3000"
 $env:API_BASE_URL="http://localhost:8000"
 ```
@@ -37,6 +40,37 @@ Health check:
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
+
+## Swagger Authorization
+
+Open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Click **Authorize** and paste your `API_AUTH_TOKEN` value.
+Swagger sends it as:
+
+```text
+Authorization: Bearer {API_AUTH_TOKEN}
+```
+
+You can get the bearer token from Swagger:
+
+1. Open `POST /api/auth/login`.
+2. Enter `API_AUTH_USERNAME` and `API_AUTH_PASSWORD`.
+3. Copy `access_token`.
+4. Click **Authorize**.
+5. Paste the copied token.
+
+Extra auth endpoints:
+
+- `POST /api/auth/token` - same as login, kept for Swagger token naming.
+- `GET /api/auth/me` - checks the current bearer token.
+- `POST /api/auth/logout` - tells the client to remove the bearer token.
+
+`/health` and the OAuth provider callback route stay open. CRM API routes require the bearer token.
 
 ## Frontend API Flow
 
