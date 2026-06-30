@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.crm_connection import CRMConnection
 from app.schemas.crm_connection import CRMCatalogItem, CRMConnectionCreate, CRMConnectionRead
+from app.services.crm_registry import list_crm_registry
 from app.services.crm.crm_factory import CRMFactory
 from app.services.token_service import TokenService
 
@@ -12,15 +13,8 @@ router = APIRouter(prefix="/api/crm", tags=["crm"])
 token_service = TokenService()
 
 CRM_PROVIDER_REGISTRY: list[CRMCatalogItem] = [
-    CRMCatalogItem(id="salesforce", name="Salesforce", auth_type="oauth"),
-    CRMCatalogItem(id="hubspot", name="HubSpot CRM", auth_type="oauth"),
-    CRMCatalogItem(id="zoho", name="Zoho CRM", auth_type="oauth"),
-    CRMCatalogItem(id="pipedrive", name="Pipedrive", auth_type="api_key"),
-    CRMCatalogItem(id="microsoft_d365", name="Microsoft D365", auth_type="oauth"),
-    CRMCatalogItem(id="freshsales", name="Freshsales", auth_type="api_key"),
-    CRMCatalogItem(id="copper", name="Copper CRM", auth_type="api_key"),
-    CRMCatalogItem(id="insightly", name="Insightly CRM", auth_type="api_key"),
-    CRMCatalogItem(id="keap", name="Keap", auth_type="oauth"),
+    CRMCatalogItem(id=provider.id, name=provider.name, auth_type="oauth" if provider.oauth else "api_key")
+    for provider in list_crm_registry()
 ]
 
 

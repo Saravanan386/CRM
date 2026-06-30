@@ -24,6 +24,7 @@ def create_app() -> FastAPI:
 
     app.include_router(crm.router)
     app.include_router(crm_auth.router)
+    app.include_router(crm_auth.alias_router)
     app.include_router(crm_sync.router)
     app.include_router(crm_webhooks.router)
 
