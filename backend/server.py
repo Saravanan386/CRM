@@ -10,8 +10,8 @@ import urllib.request
 HF_DATASET_REPO = os.getenv("HF_DATASET_REPO", "")
 HF_DATASET_CONFIG = os.getenv("HF_DATASET_CONFIG", "default")
 HF_DATASET_SPLIT = os.getenv("HF_DATASET_SPLIT", "train")
-HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_DATASET_API_BASE = os.getenv("HF_DATASET_API_BASE", "https://datasets-server.huggingface.co")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 
 def int_query(params, name, default, minimum=0, maximum=1000):
@@ -29,11 +29,10 @@ def text_query(params, name, default):
 
 
 class HuggingFaceDatasetClient:
-    def __init__(self, dataset_repo, config, split, token=None, api_base=HF_DATASET_API_BASE):
+    def __init__(self, dataset_repo, config, split, api_base=HF_DATASET_API_BASE):
         self.dataset_repo = dataset_repo
         self.config = config
         self.split = split
-        self.token = token
         self.api_base = api_base.rstrip("/")
 
     @property
@@ -71,8 +70,6 @@ class HuggingFaceDatasetClient:
 
         url = f"{self.api_base}{path}?{urlencode(params)}"
         headers = {"Accept": "application/json"}
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
 
         request = urllib.request.Request(url, headers=headers, method="GET")
         try:
@@ -89,7 +86,6 @@ hf_client = HuggingFaceDatasetClient(
     dataset_repo=HF_DATASET_REPO,
     config=HF_DATASET_CONFIG,
     split=HF_DATASET_SPLIT,
-    token=HF_TOKEN,
 )
 
 
@@ -113,6 +109,7 @@ class CRMApiHandler(BaseHTTPRequestHandler):
                     "service": "crm-huggingface-backend",
                     "datasetConfigured": hf_client.is_configured,
                     "dataset": hf_client.dataset_repo or None,
+                    "openaiConfigured": bool(OPENAI_API_KEY),
                 }
             )
 
@@ -124,7 +121,7 @@ class CRMApiHandler(BaseHTTPRequestHandler):
                     "config": hf_client.config,
                     "split": hf_client.split,
                     "configured": hf_client.is_configured,
-                    "tokenConfigured": bool(hf_client.token),
+                    "openaiConfigured": bool(OPENAI_API_KEY),
                 }
             )
 
@@ -217,7 +214,7 @@ class CRMApiHandler(BaseHTTPRequestHandler):
 def run(host, port):
     server = ThreadingHTTPServer((host, port), CRMApiHandler)
     print(f"CRM Hugging Face backend running at http://{host}:{port}")
-    print("Set HF_DATASET_REPO, HF_DATASET_CONFIG, HF_DATASET_SPLIT, and optional HF_TOKEN before running.")
+    print("Set HF_DATASET_REPO, HF_DATASET_CONFIG, HF_DATASET_SPLIT, and optional OPENAI_API_KEY before running.")
     print("Press Ctrl+C to stop.")
     server.serve_forever()
 

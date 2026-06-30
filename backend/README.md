@@ -14,10 +14,10 @@ $env:HF_DATASET_CONFIG="default"
 $env:HF_DATASET_SPLIT="train"
 ```
 
-For private datasets:
+Optional OpenAI key for later AI features:
 
 ```powershell
-$env:HF_TOKEN="{hugging_face_access_token}"
+$env:OPENAI_API_KEY="{openai_api_key}"
 ```
 
 ## Run
