@@ -1,11 +1,24 @@
 import json
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import httpx
 
 from app.config import settings
+from app.services.crm_registry import get_crm_provider
 from app.utils.encryption import EncryptionService
+
+
+@dataclass(frozen=True)
+class CRMProviderOAuthConfig:
+    name: str
+    authorize_url: str
+    token_url: str
+    client_id: str
+    client_secret: str
+    scope: str
+    extra_params: dict[str, str] | None = None
 
 
 class OAuthService:
@@ -36,16 +49,15 @@ class OAuthService:
         )
         query = urlencode(
             {
-                "client_id": oauth_config["client_id"],
+                "client_id": oauth_config.client_id,
                 "redirect_uri": redirect_uri,
                 "response_type": "code",
-                "scope": oauth_config["scope"],
+                "scope": oauth_config.scope,
                 "state": state,
-                "access_type": "offline",
-                "prompt": "consent",
+                **(oauth_config.extra_params or {}),
             }
         )
-        return f"{oauth_config['authorize_url']}?{query}"
+        return f"{oauth_config.authorize_url}?{query}"
 
     def create_state(
         self,
@@ -79,19 +91,19 @@ class OAuthService:
         if not oauth_config:
             raise ValueError("OAuth provider not configured")
 
-        if oauth_config["client_secret"]:
+        if oauth_config.client_secret:
             redirect_uri = f"{settings.api_base_url}/api/crm/auth/{provider}/callback"
             payload = {
                 "grant_type": "authorization_code",
-                "client_id": oauth_config["client_id"],
-                "client_secret": oauth_config["client_secret"],
+                "client_id": oauth_config.client_id,
+                "client_secret": oauth_config.client_secret,
                 "redirect_uri": redirect_uri,
                 "code": code,
             }
             async with httpx.AsyncClient(timeout=30) as client:
                 try:
                     response = await client.post(
-                        oauth_config["token_url"],
+                        oauth_config.token_url,
                         data=payload,
                         headers={"Accept": "application/json"},
                     )
@@ -102,45 +114,30 @@ class OAuthService:
 
         raise ValueError("OAuth client secret not configured")
 
-    def _oauth_config(self, provider: str) -> dict[str, str] | None:
-        configs = {
-            "salesforce": {
-                "client_id": settings.salesforce_client_id,
-                "client_secret": settings.salesforce_client_secret,
-                "authorize_url": "https://login.salesforce.com/services/oauth2/authorize",
-                "token_url": "https://login.salesforce.com/services/oauth2/token",
-                "scope": "api refresh_token",
-            },
-            "hubspot": {
-                "client_id": settings.hubspot_client_id,
-                "client_secret": settings.hubspot_client_secret,
-                "authorize_url": "https://app.hubspot.com/oauth/authorize",
-                "token_url": "https://api.hubapi.com/oauth/v1/token",
-                "scope": "crm.objects.contacts.read crm.objects.contacts.write",
-            },
-            "zoho": {
-                "client_id": settings.zoho_client_id,
-                "client_secret": settings.zoho_client_secret,
-                "authorize_url": "https://accounts.zoho.com/oauth/v2/auth",
-                "token_url": "https://accounts.zoho.com/oauth/v2/token",
-                "scope": "ZohoCRM.modules.ALL",
-            },
-            "microsoft_d365": {
-                "client_id": settings.microsoft_client_id,
-                "client_secret": settings.microsoft_client_secret,
-                "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-                "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-                "scope": "https://graph.microsoft.com/.default",
-            },
-            "keap": {
-                "client_id": settings.keap_client_id,
-                "client_secret": settings.keap_client_secret,
-                "authorize_url": "https://accounts.infusionsoft.com/app/oauth/authorize",
-                "token_url": "https://api.infusionsoft.com/token",
-                "scope": "full",
-            },
-        }
-        config = configs.get(provider)
-        if not config or not config["client_id"]:
+    def _oauth_config(self, provider: str) -> CRMProviderOAuthConfig | None:
+        provider_config = get_crm_provider(provider)
+        if not provider_config or not provider_config.oauth:
             return None
-        return config
+
+        client_id = str(getattr(settings, provider_config.client_id_attr or "", "") or "")
+        client_secret = str(getattr(settings, provider_config.client_secret_attr or "", "") or "")
+        scope = " ".join(provider_config.default_scopes)
+
+        if not client_id or not provider_config.authorize_url or not provider_config.token_url:
+            return None
+
+        return CRMProviderOAuthConfig(
+            name=provider_config.name,
+            client_id=client_id,
+            client_secret=client_secret,
+            authorize_url=provider_config.authorize_url,
+            token_url=provider_config.token_url,
+            scope=scope,
+            extra_params=provider_config.extra_params,
+        )
+
+    def is_provider_configured(self, provider: str) -> bool:
+        """Return true when the provider has enough OAuth config to start authorization."""
+
+        config = self._oauth_config(provider)
+        return bool(config and config.client_secret)

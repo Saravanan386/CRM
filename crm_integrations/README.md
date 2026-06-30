@@ -20,11 +20,18 @@ Set required environment variables:
 
 ```powershell
 $env:ENCRYPTION_KEY="{strong_random_secret}"
+<<<<<<< HEAD
 $env:API_AUTH_TOKEN="{backend_swagger_auth_token}"
 $env:API_AUTH_USERNAME="{swagger_login_username}"
 $env:API_AUTH_PASSWORD="{swagger_login_password}"
 $env:FRONTEND_BASE_URL="http://localhost:3000"
 $env:API_BASE_URL="http://localhost:8000"
+=======
+$env:FRONTEND_BASE_URL="https://follei-v3.vercel.app"
+$env:FRONTEND_CRM_RETURN_PATH="/presales/data-import"
+$env:API_BASE_URL="https://your-crm-backend-domain.com"
+$env:CORS_ORIGINS="https://follei-v3.vercel.app"
+>>>>>>> 9ce9f4307bcf2ced1a25d8ca89a03fcf8603d937
 ```
 
 ```powershell
@@ -86,6 +93,12 @@ Open provider OAuth login page:
 GET /api/crm/auth/zoho/connect?workspace_name={workspace_name}&login_email={login_email}&sync_scope=full
 ```
 
+Frontend-friendly alias for a real browser navigation:
+
+```http
+GET /api/crm/zoho/connect?workspace_name={workspace_name}&login_email={login_email}&sync_scope=full
+```
+
 Alternative if your frontend wants the URL as JSON:
 
 ```http
@@ -102,9 +115,56 @@ Your CRM frontend
   -> provider redirects to /api/crm/auth/{provider}/callback?code=...&state=...
   -> backend exchanges code for tokens
   -> backend saves encrypted access/refresh token
-  -> backend redirects to FRONTEND_BASE_URL/crm/connections?provider={provider}&status=connected
+  -> backend redirects to FRONTEND_BASE_URL + FRONTEND_CRM_RETURN_PATH?provider={provider}&connected={provider}&status=connected
   -> frontend refreshes GET /api/crm/providers and shows Connected
 ```
+
+The frontend should use `window.location.href` for connect clicks, not `fetch`, because the provider login and callback are browser redirects.
+
+```js
+window.location.href = `${API_BASE_URL}/api/crm/${provider}/connect?workspace_name=Follei&login_email=${encodeURIComponent(email)}&sync_scope=full`;
+```
+
+## OAuth App Credentials
+
+Register Follei in each CRM provider console and set the matching client credentials in the backend environment.
+
+```powershell
+$env:ZOHO_CLIENT_ID="{zoho_client_id}"
+$env:ZOHO_CLIENT_SECRET="{zoho_client_secret}"
+$env:ZOHO_ACCOUNTS_DOMAIN="accounts.zoho.in"
+
+$env:HUBSPOT_CLIENT_ID="{hubspot_client_id}"
+$env:HUBSPOT_CLIENT_SECRET="{hubspot_client_secret}"
+
+$env:SALESFORCE_CLIENT_ID="{salesforce_client_id}"
+$env:SALESFORCE_CLIENT_SECRET="{salesforce_client_secret}"
+
+$env:MICROSOFT_CLIENT_ID="{microsoft_client_id}"
+$env:MICROSOFT_CLIENT_SECRET="{microsoft_client_secret}"
+$env:MICROSOFT_TENANT="common"
+
+$env:PIPEDRIVE_CLIENT_ID="{pipedrive_client_id}"
+$env:PIPEDRIVE_CLIENT_SECRET="{pipedrive_client_secret}"
+
+$env:FRESHSALES_CLIENT_ID="{freshsales_client_id}"
+$env:FRESHSALES_CLIENT_SECRET="{freshsales_client_secret}"
+$env:FRESHSALES_ACCOUNTS_DOMAIN="https://your-freshsales-oauth-domain"
+
+$env:COPPER_CLIENT_ID="{copper_client_id}"
+$env:COPPER_CLIENT_SECRET="{copper_client_secret}"
+
+$env:KEAP_CLIENT_ID="{keap_client_id}"
+$env:KEAP_CLIENT_SECRET="{keap_client_secret}"
+```
+
+Register callback URLs byte-for-byte with each provider:
+
+```text
+https://your-crm-backend-domain.com/api/crm/auth/{provider}/callback
+```
+
+For Zoho India orgs, keep `ZOHO_ACCOUNTS_DOMAIN=accounts.zoho.in` and register the same backend callback URL in the Zoho API Console.
 
 Connect a CRM after your login page submits:
 
